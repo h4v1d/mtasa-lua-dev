@@ -1,0 +1,16 @@
+<meta>
+    <info author="AI-Generated" version="1.0.0" type="script" description="Modular MTA:SA Resource" />
+
+    <!-- Shared Utilities (Loaded First, Cached False for security) -->
+    <script src="shared/constants.lua" type="shared" cache="false" />
+    <script src="shared/utils.lua" type="shared" cache="false" />
+
+    <!-- Server Side -->
+    <script src="server/main.lua" type="server" />
+
+    <!-- Client Side (Cached False to prevent disk saving) -->
+    <script src="client/main.lua" type="client" cache="false" />
+
+    <!-- Exports Configuration -->
+    <!-- <export function="get_data" type="server" /> -->
+</meta>
