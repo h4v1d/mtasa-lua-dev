@@ -1,6 +1,8 @@
 {
   "name": "mtasa-lua-dev",
-  "owner": "h4v1d",
+  "owner": {
+    "name": "h4v1d"
+  },
   "description": "Expert MTA:SA Lua Development Rules and Best Practices",
   "plugins": [
     {
