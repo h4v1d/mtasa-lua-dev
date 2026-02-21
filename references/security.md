@@ -1,38 +1,61 @@
 # MTA:SA Script Security & Anti-Exploit Guidelines
 
-Security is the highest priority. Never trust data coming from the client.
+Security is the highest priority. Never trust client-controlled input.
 
-## 1. FATAL: The `source` vs `client` Rule
-- **NEVER** use `source` in server-side event handlers intended to be triggered by a client (`triggerServerEvent`). Cheaters can easily spoof the `source` variable.
-- **ALWAYS** use the hidden `client` variable provided by MTA. `client` cannot be spoofed and guarantees the actual player who triggered the event.
-  ```lua
-  -- ✅ SECURE PATTERN
-  addEventHandler("shop:buy_item", root, function(item_id)
-      if not client then return end -- MUST VERIFY CLIENT EXISTS
-      local player = client
-      -- process purchase for 'player'
-  end)
+## Validation Order (Mandatory)
+Apply this order for every client-triggered server action:
+1. Authenticate caller/context (`client` exists, expected session/state).
+2. Rate-limit endpoint (cooldown or token bucket per player/event).
+3. Validate input types and element integrity (`isElement`, type/model/range checks).
+4. Validate ownership/authorization (player owns target resource, ACL/role allowed).
+5. Execute action (state mutation, money/item/db write).
 
-2. Element Data (`setElementData`) Syncing
+## Never-Trust Rules
+- Treat client-provided IDs as untrusted selectors; resolve on server and authorize before any read/write (inventory/account/vehicle/table target).
+- In client-triggered server events, never use `source` as authority; use hidden `client`.
+- Never broadcast sensitive payloads with `triggerClientEvent(root, ...)`; send only to intended recipients.
 
-    Default `setElementData` syncs to EVERY client, exposing sensitive data and allowing client-side manipulation.
+## Dynamic SQL Identifier Rule
+- Use `??` only after strict local allowlist validation.
+- Build the allowlist server-side as constants; never derive identifier names from raw client input.
+- Reject unknown identifiers before query construction.
 
-    Rule: For sensitive data (money, admin status, inventory), disable sync (4th argument false). Use `triggerClientEvent` to send data ONLY to the specific player.
+## Secure Handler Pattern
+```lua
+addEventHandler("shop:buy_item", root, function(itemId)
+    if not client then return end
 
-    ```lua
-    setElementData(player, "is_admin", true, false) -- 4th arg false = NO SYNC
-    ```
+    -- 1) auth/context
+    local player = client
 
-3. Event Handling Security
+    -- 2) rate-limit
+    if isRateLimited(player, "shop:buy_item") then return end
 
-    Rate Limiting: Implement cooldowns for all `triggerServerEvent` calls to prevent DoS attacks via spamming.
+    -- 3) input validation
+    if type(itemId) ~= "number" then return end
 
-    Element Validation: Elements passed from the client might be destroyed before the server processes them. Always check `isElement(element)` and its type before usage.
+    -- 4) ownership/authz
+    if not canPlayerBuyItem(player, itemId) then return end
 
-    No Global Broadcasts: Never `triggerClientEvent(root, ...)` with sensitive data.
+    -- 5) execute
+    processPurchase(player, itemId)
+end)
+```
 
-4. meta.xml Security
+## Element Data (`setElementData`) Syncing
+- Default syncing can expose sensitive values to all clients.
+- For sensitive data (money/admin/inventory), disable sync and push scoped updates explicitly.
 
-    Ensure `cache="false"` is set for all client and shared scripts to prevent scripts from being saved to the player's disk.
+```lua
+setElementData(player, "is_admin", true, false) -- 4th arg false = no client sync
+```
 
-    Audit file extensions to prevent malicious scripts hidden as `.png` or `.cfg` files.
+## Event Handling Security
+- Expose events remotely only when required (`addEvent("name", true)` only for intended remote triggers).
+- Enforce rate limits on all `triggerServerEvent` entry points.
+- Re-validate passed elements server-side (`isElement` + expected element type).
+- Avoid root-scoped broadcasts for private state.
+
+## `meta.xml` Security
+- Use `cache="false"` for client/shared scripts where source persistence is undesirable.
+- Audit file types to avoid disguised executable scripts.

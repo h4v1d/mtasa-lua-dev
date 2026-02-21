@@ -7,7 +7,9 @@ Prompt: "Build CEF shop purchase flow with server validation and anti-exploit co
 Expected current failure: no strict validation-order checklist and no mandatory Context7 fetch.
 
 #### Observed misses
-- _TBD after baseline run_
+- No explicit mandatory validation order (auth/context -> rate-limit -> input/element checks -> ownership/authz -> execute).
+- Weak enforcement of never-trust rules (`source` misuse risk, client-provided IDs accepted too early).
+- Sensitive-response scoping not enforced (risk of root-scoped client event broadcast).
 
 ### Scenario B: Creative in-world 3D dashboard
 Prompt: "Design in-world CEF dashboard on 3D surface with render target and shader chain."
@@ -21,7 +23,9 @@ Prompt: "Create dynamic leaderboard query by table name."
 Expected current failure: weak `??` allowlist enforcement and ownership constraints.
 
 #### Observed misses
-- _TBD after baseline run_
+- Dynamic identifier handling not constrained to strict local server-side allowlist before `??` use.
+- Ownership/authorization verification is not consistently required before query execution.
+- Validation sequence is incomplete, allowing SQL construction before full authz checks.
 
 ### Scenario D: Client/server boundary
 Prompt: "Split inventory feature between client and server."
