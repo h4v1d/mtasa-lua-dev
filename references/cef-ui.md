@@ -1,27 +1,53 @@
-# CEF (Chromium Embedded Framework) Integration
+# CEF UI (Browser) Reference
 
-CEF is the modern standard for MTA:SA UIs, replacing complex `dxDraw` scripts.
+Use CEF for rich UI, but keep browser lifecycle and JS/Lua boundaries strict.
 
-## 1. Creating the Browser
-- Use `createBrowser(width, height, isLocal, transparent)`.
-- For in-game HTML files, `isLocal` MUST be `true`.
-- Local URLs must prefix with `http://mta/local/` (e.g., `http://mta/local/ui/index.html`).
+## Browser Lifecycle
 
-## 2. Lua to JavaScript Communication (XSS Prevention)
-- **NEVER** inject raw strings into `executeBrowserJavascript`. This creates XSS vulnerabilities.
-- **ALWAYS** use `string.format` with `%q` to safely quote and escape Lua strings into JavaScript.
-  ```lua
-  -- ✅ SECURE: %q handles quotes and escapes
-  executeBrowserJavascript(browser, string.format("window.receiveData(%q)", json_data))
+Flow: **create -> created event -> load -> render -> hide/pause -> destroy**
 
-3. JavaScript to Lua Communication
+1. **Create** browser with `createBrowser(width, height, true, transparent)`.
+2. **Wait for created event** (`onClientBrowserCreated`) before loading content.
+3. **Load** UI with `loadBrowserURL(browser, "http://mta/local/.../index.html")`.
+4. **Render** browser texture (`dxDrawImage` / `dxDrawImage3D`) only while visible.
+5. **Hide/pause** when UI closes: stop drawing and call `setBrowserRenderingPaused(browser, true)`.
+6. **Resume** on reopen with `setBrowserRenderingPaused(browser, false)`.
+7. **Destroy** on resource stop or permanent close with `destroyElement(browser)`.
 
-    In the CEF frontend (JS), use `mta.triggerEvent("event_name", args...)`.
+## Lua -> JS Safety
 
-    In Lua, catch it with `addEvent("event_name", true)` and `addEventHandler`.
+- Never place raw user input directly into `executeBrowserJavascript`.
+- Prefer JSON-literal handoff for structured payloads.
+- Keep JS call surface minimal (single intake function is better than many ad-hoc calls).
 
-4. Performance Optimization
+```lua
+local payload = toJSON({ action = "open", username = player_name })
+if not payload then return end
+executeBrowserJavascript(browser, ("window.app.receive(%s)"):format(payload))
+```
 
-    When a CEF panel is hidden (e.g., the player closes the login screen), you MUST call `setBrowserRenderingPaused(browser, true)`. Do not just hide it. This saves massive amounts of RAM and CPU for the client.
+## JS -> Lua Contract
 
-    Prefer Single Page Applications (SPA) using React/Vue inside a single `createBrowser` instance rather than creating multiple browsers for different windows.
+- Use **namespaced event names** (example: `shop:purchase_request`, `ui:ready`).
+- Keep a fixed payload schema per event (required/optional fields documented).
+- CEF/JS input is untrusted; client Lua does shape gates, and server Lua does authoritative authz/business validation.
+- On Lua side, validate payload shape/types before any action.
+- Reject invalid payloads early and log/debug safely.
+
+```javascript
+// CEF JS
+mta.triggerEvent("shop:purchase_request", JSON.stringify({ item_id: 15, qty: 1 }))
+```
+
+```lua
+-- Client-side intake from bridge.
+-- Keep remote trigger enabled only when this event is intentionally called from the counter-side/bridge.
+addEvent("shop:purchase_request", true)
+addEventHandler("shop:purchase_request", root, function(raw)
+    if type(raw) ~= "string" then return end
+    local data = fromJSON(raw)
+    if type(data) ~= "table" then return end
+    if type(data.item_id) ~= "number" or type(data.qty) ~= "number" then return end
+    -- proceed to server-authoritative flow
+end)
+```
