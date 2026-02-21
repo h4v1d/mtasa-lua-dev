@@ -22,6 +22,7 @@ description: Use when writing, reviewing, or debugging Multi Theft Auto: San And
 - DX/HLSL/3D rendering and teardown → `references/dx-hlsl-3d.md`
 - SQL/query safety and ownership checks → `references/database.md`
 - Resource boundaries and modular design → `references/architecture.md`
+- Context7 query recipes (by domain) → `references/context7-query-map.md`
 
 ## Inline High-Frequency Templates
 
