@@ -1,6 +1,6 @@
 ---
 name: mtasa-lua-dev
-description: Use when writing, reviewing, or debugging Multi Theft Auto: San Andreas (MTA:SA) Lua systems with client/server trust boundaries, security-sensitive events, CEF UI bridges, DX/HLSL rendering, SQL access, or modular resource architecture.
+description: "Use when writing, reviewing, or debugging Multi Theft Auto: San Andreas (MTA:SA) Lua systems with client/server trust boundaries, security-sensitive events, CEF UI bridges, DX/HLSL rendering, SQL access, or modular resource architecture."
 ---
 
 # MTA:SA Lua Development Skill
